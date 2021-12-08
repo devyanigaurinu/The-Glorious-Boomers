@@ -27,7 +27,7 @@
 
 2. How are the TRRs of use of force(per capita) distributed in each unit across an officer’s time spent in that unit?
 
-## CHECKPOINT-4
+## Checkpoint 4
 
 ### Questions
 
@@ -35,7 +35,7 @@
 
 2. Using TRR records that officers are involved in together, can we examine the types of force officers use? 
 
-## CHECKPOINT - 5
+## Checkpoint 5
 
 ### Question
 
