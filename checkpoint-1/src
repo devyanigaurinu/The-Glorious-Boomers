@@ -1,0 +1,160 @@
+-- Question 1 begins
+
+-- Type of force used for an incident
+-- DROP TABLE force_type_used_trr;
+CREATE TABLE force_type_used_trr AS(
+    SELECT trr_id,
+           data_officer.id as officer_id,
+           data_officer.first_name,
+           data_officer.last_name,
+           force_type,
+           trr_trr.trr_datetime::TIMESTAMP::DATE-data_officer.appointed_date as time_of_employment
+    FROM trr_actionresponse, trr_trr, data_officer
+    WHERE trr_actionresponse.trr_id = trr_trr.id AND trr_trr.officer_id = data_officer.id
+    );
+
+-- Question 1: Most common type of force used in the police force
+-- Answer 1: Verbal commands - 62754 counts
+WITH force_type_counter_gen AS (
+    SELECT force_type, COUNT(force_type) AS force_type_count
+    FROM force_type_used_trr
+    GROUP BY force_type
+    ORDER BY force_type_count DESC)
+SELECT force_type, force_type_count
+FROM force_type_counter_gen
+LIMIT 1;
+
+-- Question 1 ends
+-------------------------------------
+-- Question 2 begins
+
+-- type of force used in an incident including the time of employment of officers
+
+-- DROP TABLE rookie_classification_force
+CREATE TABLE rookie_classification_force AS(
+SELECT trr_id,
+       officer_id,
+       first_name,
+       last_name,
+       time_of_employment,
+       force_type,
+
+CASE WHEN time_of_employment < 365 THEN 'Rookie'
+WHEN time_of_employment > 365 THEN 'Non-Rookie'
+END AS "rookie_or_not"
+FROM force_type_used_trr);
+
+-- Question 2: Most common type of force used in the police force by rookies vs. non-rookies
+-- Answer 2:
+-- 1) Rookies --> (Physical force - Holding) - 1449 counts
+WITH force_type_counter_spec AS (
+    SELECT rookie_or_not, force_type, COUNT(force_type) AS force_type_count
+    FROM rookie_classification_force
+    GROUP BY rookie_or_not, force_type
+    ORDER BY force_type_count DESC)
+SELECT rookie_or_not, force_type, force_type_count
+FROM force_type_counter_spec
+WHERE rookie_or_not = 'Rookie'
+LIMIT 1;
+
+-- 2) Non-Rookies --> (Verbal Commands) - 61410
+WITH force_type_counter_spec AS (
+    SELECT rookie_or_not, force_type, COUNT(force_type) AS force_type_count
+    FROM rookie_classification_force
+    GROUP BY rookie_or_not, force_type
+    ORDER BY force_type_count DESC)
+SELECT rookie_or_not, force_type, force_type_count
+FROM force_type_counter_spec
+WHERE rookie_or_not = 'Non-Rookie'
+LIMIT 1;
+
+-- Question 2 ends
+----------------------------------
+-- Question 3 begins
+-- DROP TABLE officer_trr_info
+CREATE TABLE officer_trr_info AS (
+    SELECT data_officer.id as id,
+           data_officer.first_name,
+           data_officer.last_name,
+           trr_datetime::TIMESTAMP::DATE as incident_date,
+           data_officer.appointed_date as appointed_date
+    FROM data_officer, trr_trr
+    WHERE trr_trr.officer_id = data_officer.id
+    );
+
+-- DROP TABLE officer_complaint_info
+CREATE TABLE officer_complaint_info AS(
+SELECT crid,
+       data_officer.id as id,
+       data_officer.first_name,
+       data_officer.last_name,
+       incident_date::TIMESTAMP::DATE as incident_date,
+       data_officer.appointed_date as appointed_date
+    FROM data_officer, data_allegation, data_officerallegation
+    WHERE crid = data_officerallegation.allegation_id AND data_officerallegation.officer_id = data_officer.id);
+
+-- Question 3: What is the ratio of complaints to the trrs for rookies vs non-rookies?
+-- Answer = 173
+WITH employment_info AS (SELECT id as id,
+        first_name,
+        last_name,
+       incident_date - appointed_date as time_of_employment
+FROM officer_trr_info)
+SELECT  ((SELECT COUNT(*) FROM officer_complaint_info)/(COUNT(*))) AS rookie_complaint_trr_ratio
+FROM employment_info
+WHERE time_of_employment < 365;
+
+-- Answer = 3
+WITH employment_info AS (SELECT id as id,
+        first_name,
+        last_name,
+       incident_date - appointed_date as time_of_employment
+FROM officer_trr_info)
+SELECT  ((SELECT COUNT(*) FROM officer_complaint_info)/(COUNT(*))) AS non_rookie_complaint_trr_ratio
+FROM employment_info
+WHERE time_of_employment > 365;
+
+-- Question 3 ends
+----------------------------
+-- Question 4 begins
+
+-- Question: Frequency of trrs per type of force for rookies vs non rookies
+-- DROP TABLE officer_trr_info
+CREATE TABLE officer_trr_force_type_info AS (
+    SELECT data_officer.id as id,
+           data_officer.first_name,
+           data_officer.last_name,
+           force_type,
+           trr_datetime::TIMESTAMP::DATE as incident_date,
+           data_officer.appointed_date as appointed_date
+    FROM data_officer, trr_trr, trr_actionresponse
+    WHERE trr_trr.officer_id = data_officer.id AND trr_trr.id = trr_actionresponse.trr_id
+    );
+
+-- Rookie trr count
+WITH employment_info AS (SELECT id as id,
+        first_name,
+        last_name,
+        force_type,
+       incident_date - appointed_date as time_of_employment
+FROM officer_trr_force_type_info)
+SELECT force_type, COUNT(*) AS rookie_trr_count
+FROM employment_info
+WHERE time_of_employment < 365
+GROUP BY force_type;
+
+-- Non-rookie trr count
+WITH employment_info AS (SELECT id as id,
+        first_name,
+        last_name,
+        force_type,
+       incident_date - appointed_date as time_of_employment
+FROM officer_trr_force_type_info)
+SELECT force_type, COUNT(*) AS non_rookie_trr_count
+FROM employment_info
+WHERE time_of_employment > 365
+GROUP BY force_type;
+
+-- Question 4 ends
+
+
